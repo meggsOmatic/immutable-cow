@@ -11,19 +11,21 @@ cmake_minimum_required (VERSION 3.10)
 
 project ("cow")
 
-find_package(GTest CONFIG REQUIRED)
+add_library(cow
+  "src/cow.cpp"
+  "include/cow/ptr.h"
+  "include/cow/detail/control_block.h"
+  "include/cow/detail/ptr.h")
 
-# Add source to this project's executable.
-add_library(cow "src/cow.cpp")
 target_include_directories(cow PUBLIC "include")
 
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET cow PROPERTY CXX_STANDARD 20)
-endif()
 
-enable_testing()
+find_package(GTest CONFIG REQUIRED)
 add_executable(cow_test "test/test.cpp")
-target_link_libraries(cow_test PRIVATE cow GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main)
+target_link_libraries(cow_test PUBLIC cow GTest::gtest GTest::gtest_main)
 
 include(GoogleTest)
 gtest_discover_tests(cow_test)
+
+set_property(TARGET cow PROPERTY CXX_STANDARD 20)
+set_property(TARGET cow_test PROPERTY CXX_STANDARD 20)
