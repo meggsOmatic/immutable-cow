@@ -13,10 +13,11 @@ namespace cow {
     ptr(std::nullptr_t = nullptr);
     ~ptr();
 
-    ptr(const ptr&);
-    ptr(ptr&&);
-    ptr& operator=(const ptr&);
-    ptr& operator=(ptr&&);
+    ptr(const ptr&) noexcept;
+    ptr(ptr&&) noexcept;
+    ptr& operator=(const ptr&) noexcept;
+    ptr& operator=(ptr&&) noexcept;
+    ptr& operator=(std::nullptr_t) noexcept;
 
     explicit operator bool() const noexcept;
 
@@ -55,7 +56,6 @@ namespace cow {
     template<typename ObjectType2>
     friend bool operator==(std::nullptr_t, const ptr<ObjectType2>& ptr2);
   };
-
 }
 
 #include "cow/detail/ptr.h"

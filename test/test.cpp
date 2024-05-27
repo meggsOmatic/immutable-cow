@@ -44,5 +44,22 @@ TEST(Cow, Hi) {
   EXPECT_NE(i, j);
   EXPECT_EQ(*i, 1);
   EXPECT_EQ(*j, 2);
+
+  cow::ptr<int> m{ j };
+  EXPECT_TRUE(j);
+  EXPECT_TRUE(m);
+  EXPECT_EQ(m, j);
+  cow::ptr<int> n{ std::move(j) };
+  EXPECT_TRUE(n);
+  EXPECT_FALSE(j);
+  EXPECT_EQ(m, n);
+  EXPECT_NE(m, j);
+  EXPECT_NE(n, j);
+  EXPECT_EQ(j.use_count(), 0);
+  EXPECT_EQ(m.use_count(), 2);
+  EXPECT_EQ(n.use_count(), 2);
+  n = nullptr;
+  EXPECT_EQ(m.use_count(), 1);
+  EXPECT_EQ(n.use_count(), 0);
 }
 

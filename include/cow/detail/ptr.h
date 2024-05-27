@@ -18,19 +18,19 @@ namespace cow {
   inline ptr<ObjectType>::ptr(std::nullptr_t) : object(nullptr) {}
   
   template<typename ObjectType>
-  inline ptr<ObjectType>::ptr(const ptr& other) : object(other.object) {
+  inline ptr<ObjectType>::ptr(const ptr& other) noexcept : object(other.object) {
     if (object) {
       control()->incRef();
     }
   }
 
   template<typename ObjectType>
-  inline ptr<ObjectType>::ptr(ptr&& other) : object(other.object) {
+  inline ptr<ObjectType>::ptr(ptr&& other) noexcept : object(other.object) {
     other.object = nullptr;
   }
 
   template<typename ObjectType>
-  inline ptr<ObjectType>& ptr<ObjectType>::operator=(const ptr& other) {
+  inline ptr<ObjectType>& ptr<ObjectType>::operator=(const ptr& other) noexcept {
     if (other.object) {
       other.control()->incRef();
     }
@@ -42,13 +42,22 @@ namespace cow {
   }
 
   template<typename ObjectType>
-  inline ptr<ObjectType>& ptr<ObjectType>::operator=(ptr&& other) {
+  inline ptr<ObjectType>& ptr<ObjectType>::operator=(ptr&& other) noexcept {
     if (this != &other) {
       if (object) {
         control()->decRef();
       }
       object = other.object;
       other.object = nullptr;
+    }
+    return *this;
+  }
+
+  template<typename ObjectType>
+  inline ptr<ObjectType>& ptr<ObjectType>::operator=(std::nullptr_t) noexcept {
+    if (object) {
+      control()->decRef();
+      object = nullptr;
     }
     return *this;
   }
