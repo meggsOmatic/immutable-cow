@@ -1,7 +1,7 @@
 #include "cow/ptr.h"
 #include <gtest/gtest.h>
 
-TEST(Cow, Hi) {
+TEST(CowPtr, Int) {
   cow::ptr<int> i = cow::make<int>(1);
   EXPECT_TRUE(i);
   EXPECT_NE(i.get(), nullptr);
@@ -61,5 +61,23 @@ TEST(Cow, Hi) {
   n = nullptr;
   EXPECT_EQ(m.use_count(), 1);
   EXPECT_EQ(n.use_count(), 0);
+}
+
+struct point2i {
+  int x, y;
+};
+
+TEST(CowPtr, Struct) {
+  auto i = cow::make<point2i>(1, 2);
+  auto j = i;
+  EXPECT_EQ(i, j);
+  EXPECT_EQ(i->x, 1);
+  EXPECT_EQ(i->y, 2);
+  i--->x += 10;
+  EXPECT_NE(i, j);
+  EXPECT_EQ(i->x, 11);
+  EXPECT_EQ(i->y, 2);
+  EXPECT_EQ(j->x, 1);
+  EXPECT_EQ(j->y, 2);
 }
 
