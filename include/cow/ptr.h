@@ -10,6 +10,8 @@ namespace cow {
   template<typename ObjectType>
   class ptr final {
   public:
+    using object_type = ObjectType;
+
     ptr(std::nullptr_t = nullptr);
     ~ptr();
 

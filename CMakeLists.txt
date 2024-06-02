@@ -15,13 +15,13 @@ add_library(cow
   "src/cow.cpp"
   "include/cow/ptr.h"
   "include/cow/detail/control_block.h"
-  "include/cow/detail/ptr.h")
+  "include/cow/detail/ptr.h" "include/cow/path.h")
 
 target_include_directories(cow PUBLIC "include")
 
 
 find_package(GTest CONFIG REQUIRED)
-add_executable(cow_test "test/test.cpp")
+add_executable(cow_test "test/ptr_test.cpp" "test/path_test.cpp")
 target_link_libraries(cow_test PUBLIC cow GTest::gtest GTest::gtest_main)
 
 include(GoogleTest)
