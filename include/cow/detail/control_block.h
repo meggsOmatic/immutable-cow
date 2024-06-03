@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <typeinfo>
 #include <assert.h>
 
 namespace cow::detail {
@@ -27,6 +28,8 @@ namespace cow::detail {
       }
     }
 
+    virtual const std::type_info& type_info() const noexcept = 0;
+
   protected:
     control_block() = default;
   };
@@ -41,6 +44,10 @@ namespace cow::detail {
 
     control_block_with_object* clone() const noexcept {
       return new control_block_with_object(object);
+    }
+
+    const std::type_info& type_info() const noexcept {
+      return typeid(ObjectType);
     }
 
     ObjectType object;

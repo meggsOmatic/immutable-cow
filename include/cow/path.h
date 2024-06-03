@@ -7,6 +7,8 @@ namespace cow {
 template <typename ObjectType>
 class spot {
  public:
+  using object_type = ObjectType;
+
   const ptr<ObjectType>* here;
   const ObjectType* get() const noexcept {
     return here ? here->get() : nullptr;
@@ -22,6 +24,10 @@ class spot {
 
   virtual ObjectType* write() {
     return here ? --*const_cast<ptr<ObjectType>*>(here) : nullptr;
+  }
+
+  virtual const std::type_info& type_info() const noexcept {
+    return typeid(object_type);
   }
 
   explicit operator bool() const noexcept { return here && *here; }
@@ -118,5 +124,10 @@ auto spot<FromObjectType>::walk(StepFunc&& func) noexcept {
   return step<FromObjectType, StepFunc, ToObjectType>(
       *this, std::forward<StepFunc>(func));
 }
+
+
+class path {
+
+};
 
 }  // namespace cow

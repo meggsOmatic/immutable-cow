@@ -5,6 +5,15 @@ namespace {
 struct point2i {
   int x, y;
 };
+
+struct Base {
+  virtual ~Base() = default;
+  int b{1};
+};
+
+struct Derived : public Base {
+  int d{2};
+};
 }
 
 TEST(CowPtr, Int) {
@@ -65,6 +74,7 @@ TEST(CowPtr, Int) {
   EXPECT_EQ(m.use_count(), 2);
   EXPECT_EQ(n.use_count(), 2);
   n = nullptr;
+  EXPECT_EQ(n, nullptr);
   EXPECT_EQ(m.use_count(), 1);
   EXPECT_EQ(n.use_count(), 0);
 }
@@ -83,3 +93,92 @@ TEST(CowPtr, Struct) {
   EXPECT_EQ(j->y, 2);
 }
 
+TEST(CowPtr, ImplicitCasts) {
+  auto b = cow::make<Base>();
+  EXPECT_EQ(b.type_info(), typeid(Base));
+
+  auto d = cow::make<Derived>();
+  EXPECT_EQ(d.type_info(), typeid(Derived));
+
+  cow::ptr<Base> b2{d};
+  EXPECT_EQ(d, b2);
+  EXPECT_EQ(b2.type_info(), typeid(Derived));
+
+  cow::ptr<Base> b3;
+  EXPECT_EQ(b3.type_info(), typeid(nullptr));
+  b3 = d;
+  EXPECT_NE(d, nullptr);
+  EXPECT_EQ(d, b3);
+  EXPECT_EQ(b3.type_info(), typeid(Derived));
+
+  cow::ptr<Derived> d2 = d;
+  EXPECT_EQ(d, d2);
+
+  cow::ptr<Base> b4{std::move(d2)};
+  EXPECT_EQ(d2, nullptr);
+  EXPECT_NE(b2, nullptr);
+  EXPECT_EQ(b2, d);
+
+  d2 = d;
+  EXPECT_NE(d, nullptr);
+  EXPECT_NE(d2, nullptr);
+  b3 = std::move(d2);
+  EXPECT_EQ(d2, nullptr);
+  EXPECT_NE(b3, nullptr);
+  EXPECT_EQ(d, b3);
+
+  // None of these should compile.
+  // d = b;
+  // d = std::move(b);
+  // cow::ptr<Derived> d4(b);
+  // cow::ptr<Derived> d5(std::move(b));
+}
+
+TEST(CowPtr, ExplicitCasts) {
+  cow::ptr<Base> b = cow::make<Derived>();
+  EXPECT_EQ(b.type_info(), typeid(Derived));
+
+  auto d1 = b.cast<Derived>();
+  EXPECT_EQ(d1, b);
+  EXPECT_EQ(b.use_count(), 2);
+  auto d2 = b.move_cast<Derived>();
+  EXPECT_EQ(d1, d2);
+  EXPECT_EQ(b, nullptr);
+  EXPECT_EQ(b.use_count(), 0);
+  EXPECT_EQ(d1.use_count(), 2);
+
+  b = d2.cast<Base>();
+  EXPECT_EQ(b, d1);
+  EXPECT_EQ(b.use_count(), 3);
+  b = d2.cast<Derived>();
+  EXPECT_EQ(b, d1);
+  EXPECT_EQ(b.use_count(), 3);
+  b = d2.move_cast<Base>();
+  EXPECT_EQ(b, d1);
+  EXPECT_EQ(b.use_count(), 2);
+
+  d1 = b.dynamic<Derived>();
+  EXPECT_EQ(b, d1);
+  EXPECT_EQ(d1.use_count(), 2);
+  d2 = b.move_dynamic<Derived>();
+  EXPECT_EQ(d1, d2);
+  EXPECT_EQ(b, nullptr);
+  EXPECT_NE(d2, nullptr);
+  EXPECT_EQ(d1.use_count(), 2);
+  b = d2;
+  EXPECT_EQ(d1.use_count(), 3);
+  d2 = b.move_dynamic<Derived>();
+  EXPECT_EQ(d1.use_count(), 2);
+
+  b = cow::make<Base>();
+  d1 = b.dynamic<Derived>();
+  EXPECT_NE(b, nullptr);
+  EXPECT_EQ(d1, nullptr);
+  EXPECT_EQ(b.use_count(), 1);
+  EXPECT_EQ(d1.use_count(), 0);
+  EXPECT_EQ(d2.use_count(), 1);
+
+  d1 = b.move_dynamic<Derived>();
+  EXPECT_EQ(b, nullptr);
+  EXPECT_EQ(d1, nullptr);
+}
