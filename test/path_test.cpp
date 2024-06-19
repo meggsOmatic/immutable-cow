@@ -16,9 +16,9 @@ void replaceInPlace(cow::spot<tree>&& node, int oldVal, int newVal) {
     node--->value = newVal;
   }
 
-  replaceInPlace(node.walk([](const tree& from) { return &from.left; }), oldVal,
+  replaceInPlace(node.step([](const tree& from) { return &from.left; }), oldVal,
           newVal);
-  replaceInPlace(node.walk([](const tree& from) { return &from.right; }),
+  replaceInPlace(node.step([](const tree& from) { return &from.right; }),
                  oldVal,
           newVal);
 }

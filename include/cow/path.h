@@ -35,7 +35,7 @@ class spot {
   size_t use_count() const noexcept { return here ? here->use_count() : 0; }
 
   template <typename StepFunc>
-  auto walk(StepFunc&& func) noexcept;
+  auto step(StepFunc&& func) noexcept;
 
   spot(ptr<ObjectType>* where = nullptr) noexcept : here(where) {}
 
@@ -52,13 +52,13 @@ class spot {
 };
 
 template <typename FromObjectType, typename StepFunc, typename ToObjectType>
-class step final : public spot<ToObjectType> {
+class next_spot final : public spot<ToObjectType> {
  public:
   spot<FromObjectType>* fromSpot;
   const FromObjectType* fromObject;
   StepFunc stepFunc;
 
-  step(spot<FromObjectType>& from, StepFunc&& stepFunc) noexcept
+  next_spot(spot<FromObjectType>& from, StepFunc&& stepFunc) noexcept
       : fromSpot(&from),
         fromObject(from.get()),
         stepFunc(std::forward<StepFunc>(stepFunc)) {
@@ -88,8 +88,8 @@ class step final : public spot<ToObjectType> {
     return spot<ToObjectType>::write();
   }
 
-  step(const step&) = delete;
-  step(step&& other) noexcept
+  next_spot(const next_spot&) = delete;
+  next_spot(next_spot&& other) noexcept
       : spot<ToObjectType>(std::move(other)),
         fromSpot(other.fromSpot),
         fromObject(other.fromObject),
@@ -97,8 +97,8 @@ class step final : public spot<ToObjectType> {
     other.fromSpot = nullptr;
     other.fromObject = nullptr;
   }
-  step& operator=(const step&) = delete;
-  step& operator=(step&& other) noexcept {
+  next_spot& operator=(const next_spot&) = delete;
+  next_spot& operator=(next_spot&& other) noexcept {
     if (this != &other) {
       this->here = other.here;
       other.here = nullptr;
@@ -117,16 +117,17 @@ class step final : public spot<ToObjectType> {
 
 template <typename FromObjectType>
 template <typename StepFunc>
-auto spot<FromObjectType>::walk(StepFunc&& func) noexcept {
+auto spot<FromObjectType>::step(StepFunc&& func) noexcept {
   using ToCowPtrType = std::remove_const_t<
       std::remove_pointer_t<decltype(func(*(const FromObjectType*)nullptr))>>;
   using ToObjectType = typename ToCowPtrType::object_type;
-  return step<FromObjectType, StepFunc, ToObjectType>(
+  return next_spot<FromObjectType, StepFunc, ToObjectType>(
       *this, std::forward<StepFunc>(func));
 }
 
 
 class path {
+ public:
 
 };
 
