@@ -16,9 +16,9 @@ void replaceInPlace(cow::spot<tree>&& node, int oldVal, int newVal) {
     node--->value = newVal;
   }
 
-  replaceInPlace(node.step([](const tree& from) { return &from.left; }), oldVal,
+  replaceInPlace(node.step_from([](const tree& from) { return &from.left; }), oldVal,
           newVal);
-  replaceInPlace(node.step([](const tree& from) { return &from.right; }),
+  replaceInPlace(node.step_from([](const tree& from) { return &from.right; }),
                  oldVal,
           newVal);
 }
@@ -41,7 +41,7 @@ TEST(CowPath, Tree) {
   EXPECT_EQ(a->right->left, b->right->left);
   EXPECT_EQ(a->right->left->value, 6);
 
-  replaceInPlace(&a, 6, 16);
+  replaceInPlace(cow::root_spot(&a), 6, 16);
 
   EXPECT_NE(a, b);
   EXPECT_EQ(a.use_count(), 1);
