@@ -8,6 +8,9 @@
 namespace cow {
 
 template <typename ObjectType>
+class path;
+
+template <typename ObjectType>
 class spot {
  public:
   using object_type = ObjectType;
@@ -40,13 +43,15 @@ class spot {
   size_t use_count() const noexcept { return here ? here->use_count() : 0; }
 
   template <typename StepFunc>
-  auto step_from(StepFunc&& func) noexcept;
+  auto step(StepFunc&& func) noexcept;
 
  protected:
+  friend class path<ObjectType>;
+
   explicit spot(const ptr<ObjectType>* where) : here(where) {}
   spot(const spot&) = delete;
   spot& operator=(const spot&) = delete;
-  spot(spot&& other) noexcept : here(other) { other.here = nullptr; }
+  spot(spot&& other) noexcept : here(other.here) { other.here = nullptr; }
   spot& operator=(spot&& other) noexcept {
     assert(this != &other);  // virtual class; derived must check this
     here = other.here;
@@ -165,7 +170,7 @@ class lambda_spot final : public next_spot<FromObjectType, ToObjectType> {
 
 template <typename FromObjectType>
 template <typename StepFunc>
-auto spot<FromObjectType>::step_from(StepFunc&& func) noexcept {
+auto spot<FromObjectType>::step(StepFunc&& func) noexcept {
   using ToCowPtrType = std::remove_const_t<
       std::remove_pointer_t<decltype(func(*(const FromObjectType*)nullptr))>>;
   using ToObjectType = typename ToCowPtrType::object_type;
@@ -180,39 +185,47 @@ class path : public spot<ObjectType> {
   path() {}
 
   template <typename RootSpotType = root_spot<ObjectType>, typename... ArgTypes>
-  explicit path(ArgTypes&&... args) : spot(nullptr) {
+  explicit path(ArgTypes&&... args) : spot<ObjectType>(nullptr) {
     spots.emplace_back(new RootSpotType(std::forward<ArgTypes>(args)...));
     this->here = spots.back()->here;
   }
 
   size_t size() const noexcept { return spots.size(); }
 
-  void pop_back(size_t count = 1) noexcept {
+  ObjectType* write() noexcept override {
+    return spots.empty() ? nullptr : spots.back()->write();
+  }
+
+  path& pop_back(size_t count = 1) noexcept {
     assert(count >= spots.size());
     spots.resize(spots.size() - count);
     this->here = spots.empty() ? nullptr : spots.back()->here;
+    return *this;
   }
 
-  void resize(size_t newSize) noexcept {
+  path& resize(size_t newSize) noexcept {
     assert(newSize <= spots.size());
     spots.resize(newSize);
     this->here = newSize > 0 ? spots.back()->here : nullptr;
+    return *this;
   }
 
   template <typename StepFunc>
-  void add_lambda(StepFunc&& stepFunc) noexcept {
+  path& add_lambda(StepFunc&& stepFunc) noexcept {
     assert(!spots.empty());
     spots.emplace_back(new lambda_spot<ObjectType, StepFunc, ObjectType>(
         *spots.back(), std::forward<StepFunc>(stepFunc)));
     this->here = spots.back()->here;
+    return *this;
   }
 
   template <typename SpotType, typename... ArgTypes>
-  void add_spot(ArgTypes&&... args) {
+  path& add_spot(ArgTypes&&... args) {
     assert(!spots.empty());
     spots.emplace_back(
         new SpotType(*spots.back(), std::forward<ArgTypes>(args)...));
     this->here = spots.back()->here;
+    return *this;
   }
 
   const spot<ObjectType>& back(size_t count = 0) const noexcept {
@@ -247,5 +260,12 @@ class path : public spot<ObjectType> {
  private:
   std::vector<std::unique_ptr<spot<ObjectType>>> spots;
 };
+
+template<typename ObjectType, typename... StepLambdaType>
+path<ObjectType> make_path(ptr<ObjectType>* root, StepLambdaType&&... stepFunc) {
+  path<ObjectType> result(root);
+  (result.add_lambda(std::forward<StepLambdaType>(stepFunc)), ...);
+  return result;
+}
 
 }  // namespace cow
