@@ -223,7 +223,8 @@ struct binary_tree {
 
 void search_key_and_replace_value(cow::spot<binary_tree>&& spot,
                                   int key,
-                                  const std::string& newValue) {
+                                  const std::string& newValue)
+{
   if (!spot) { return; }
 
   if (key == spot->key) {
@@ -240,6 +241,22 @@ void search_key_and_replace_value(cow::spot<binary_tree>&& spot,
 
 ### 🐄 Down the CoW path
 
-> [!CAUTION] I expect the `path` API will change based on experience using it.
+> [!CAUTION]
+> I expect the `path` API will change based on experience using it.
 
-The various `cow::spot`s are great on a recursive stack, but sometimes you need to encapsulate an arbitraray-length chain of spots as a single object. A typical example would be an iterator into a tree structure. This is done with a `cow::path<T>`, which assumes a linear chain of same-typed objects. More to come...
+The various `cow::spot`s are great on a recursive stack, but sometimes you need to encapsulate an arbitraray-length chain of spots as a single object. A typical example would be an iterator into a tree structure. This is done with a `cow::path<T>`, which bundles together a linear chain of single-type spots. (Generally starting with a `root_spot<T>` and following with a series of `next_spot<T, T>` subclasses.) It is itself a `spot<T>`, and it can be stepped from (including to another type) as if you were chaining from the last spot along its internal path.
+
+```cpp
+cow::ptr<binary_tree> root = ...;
+
+cow::path<binary_tree> findPath(&root);
+while (findPath) {
+  if (key < find->key) {
+    findPath.push(&find->left);
+  } else if (key > find->key) {
+    findPath.push(&find->right);
+  } else {
+    find--->value = newValue;
+  }
+}
+```
