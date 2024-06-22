@@ -15,7 +15,7 @@ add_library(cow
   "src/cow.cpp"
   "include/cow/ptr.h"
   "include/cow/detail/control_block.h"
-  "include/cow/detail/ptr.h" "include/cow/path.h")
+  "include/cow/detail/ptr.h" "include/cow/path.h" "include/cow/spot.h" "include/cow/detail/spot.h")
 
 target_include_directories(cow PUBLIC "include")
 
