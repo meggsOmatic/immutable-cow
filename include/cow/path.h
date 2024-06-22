@@ -10,6 +10,9 @@ namespace cow {
 template <typename ObjectType>
 class path;
 
+template <typename FromObjectType, typename ToObjectType>
+class offset_spot;
+
 template <typename ObjectType>
 class spot {
  public:
@@ -44,6 +47,10 @@ class spot {
 
   template <typename StepFunc>
   auto step(StepFunc&& func) noexcept;
+
+  template <typename ToObjectType>
+  offset_spot<ObjectType, ToObjectType> step(
+      const ptr<ToObjectType>* pointerToPointerInFromObject) noexcept;
 
  protected:
   friend class path<ObjectType>;
@@ -139,7 +146,7 @@ class next_spot : public spot<ToObjectType> {
   bool hasWritten;
 };
 
-template <typename FromObjectType, typename StepFunc, typename ToObjectType>
+template <typename FromObjectType, typename ToObjectType, typename StepFunc>
 class lambda_spot final : public next_spot<FromObjectType, ToObjectType> {
  public:
   lambda_spot(spot<FromObjectType>& from, StepFunc&& stepFunc) noexcept
@@ -168,14 +175,50 @@ class lambda_spot final : public next_spot<FromObjectType, ToObjectType> {
   StepFunc stepFunc;
 };
 
+template <typename FromObjectType, typename ToObjectType>
+class offset_spot final : public next_spot<FromObjectType, ToObjectType> {
+ public:
+  offset_spot(
+      spot<FromObjectType>& from,
+      const ptr<ToObjectType>* pointerToPointerWithinFromObject) noexcept
+      : next_spot<FromObjectType, ToObjectType>(
+            from,
+            pointerToPointerWithinFromObject),
+        offset(reinterpret_cast<const char*>(pointerToPointerWithinFromObject) -
+               reinterpret_cast<const char*>(from.get())) {
+    assert(from);
+    assert(pointerToPointerWithinFromObject != nullptr);
+    assert(offset >= 0 && offset < sizeof(FromObjectType) &&
+           (offset & (alignof(cow::ptr<ToObjectType>) - 1)) == 0);
+  }
+
+  const ptr<ToObjectType>* step(
+      const FromObjectType& from) const noexcept override {
+    return reinterpret_cast<const ptr<ToObjectType>*>(
+        reinterpret_cast<const char*>(&from) + offset);
+  }
+
+ private:
+  size_t offset;
+};
+
 template <typename FromObjectType>
 template <typename StepFunc>
 auto spot<FromObjectType>::step(StepFunc&& func) noexcept {
   using ToCowPtrType = std::remove_const_t<
       std::remove_pointer_t<decltype(func(*(const FromObjectType*)nullptr))>>;
   using ToObjectType = typename ToCowPtrType::object_type;
-  return lambda_spot<FromObjectType, StepFunc, ToObjectType>(
+  return lambda_spot<FromObjectType, ToObjectType, StepFunc>(
       *this, std::forward<StepFunc>(func));
+}
+
+
+template <typename FromObjectType>
+template <typename ToObjectType>
+offset_spot<FromObjectType, ToObjectType> spot<FromObjectType>::step(
+  const ptr<ToObjectType>* pointerToPointerInFromObject) noexcept {
+  return offset_spot<FromObjectType, ToObjectType>(
+      *this, pointerToPointerInFromObject);
 }
 
 // TODO: Write a good scratch allocator and use it here :-)
@@ -213,7 +256,7 @@ class path : public spot<ObjectType> {
   template <typename StepFunc>
   path& add_lambda(StepFunc&& stepFunc) noexcept {
     assert(!spots.empty());
-    spots.emplace_back(new lambda_spot<ObjectType, StepFunc, ObjectType>(
+    spots.emplace_back(new lambda_spot<ObjectType, ObjectType, StepFunc>(
         *spots.back(), std::forward<StepFunc>(stepFunc)));
     this->here = spots.back()->here;
     return *this;
