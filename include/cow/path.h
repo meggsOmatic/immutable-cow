@@ -227,47 +227,67 @@ class path : public spot<ObjectType> {
  public:
   path() {}
 
+  explicit path(ptr<ObjectType>* rootWhere) : spot<ObjectType>(rootWhere) {
+    spots.emplace_back(new root_spot<ObjectType>(rootWhere));
+  }
+
   template <typename RootSpotType = root_spot<ObjectType>, typename... ArgTypes>
-  explicit path(ArgTypes&&... args) : spot<ObjectType>(nullptr) {
-    spots.emplace_back(new RootSpotType(std::forward<ArgTypes>(args)...));
-    this->here = spots.back()->here;
+  path create(ArgTypes&&... args) {
+    path<ObjectType> result;
+    result.spots.emplace_back(new RootSpotType(std::forward<ArgTypes>(args)...));
+    result.here = spots.back()->here;
+    return result;
   }
 
   size_t size() const noexcept { return spots.size(); }
 
   ObjectType* write() noexcept override {
-    return spots.empty() ? nullptr : spots.back()->write();
+    ObjectType* result = nullptr;
+    if (!spots.empty()) {
+      spot<ObjectType>* back = spots.back().get();
+      result = back->write();
+      this->here = back->here;
+    }
+    return result;
   }
 
-  path& pop_back(size_t count = 1) noexcept {
-    assert(count >= spots.size());
-    spots.resize(spots.size() - count);
-    this->here = spots.empty() ? nullptr : spots.back()->here;
+  path& pop(size_t count = 1) noexcept {
+    size_t oldSize = spots.size();
+    if (count < oldSize) {
+      spots.resize(spots.size() - count);
+      this->here = spots.back()->here;
+    } else {
+      spots.clear();
+      this->here = nullptr;
+    }
     return *this;
   }
 
   path& resize(size_t newSize) noexcept {
-    assert(newSize <= spots.size());
-    spots.resize(newSize);
-    this->here = newSize > 0 ? spots.back()->here : nullptr;
+    if (newSize < spots.size()) {
+      spots.resize(newSize);
+      this->here = newSize > 0 ? spots.back()->here : nullptr;
+    }
     return *this;
   }
 
   template <typename StepFunc>
-  path& add_lambda(StepFunc&& stepFunc) noexcept {
-    assert(!spots.empty());
-    spots.emplace_back(new lambda_spot<ObjectType, ObjectType, StepFunc>(
-        *spots.back(), std::forward<StepFunc>(stepFunc)));
-    this->here = spots.back()->here;
-    return *this;
+  path& push(StepFunc&& stepFunc) noexcept {
+    return emplace<lambda_spot<ObjectType, ObjectType, StepFunc>>(
+        std::forward<StepFunc>(stepFunc));
+  }
+
+  path& push(const ptr<ObjectType>* pointerInBackObject) noexcept {
+    return emplace<offset_spot<ObjectType, ObjectType>>(
+        pointerInBackObject);
   }
 
   template <typename SpotType, typename... ArgTypes>
-  path& add_spot(ArgTypes&&... args) {
+  path& emplace(ArgTypes&&... args) {
     assert(!spots.empty());
-    spots.emplace_back(
-        new SpotType(*spots.back(), std::forward<ArgTypes>(args)...));
-    this->here = spots.back()->here;
+    SpotType* newSpot = new SpotType(*spots.back(), std::forward<ArgTypes>(args)...);
+    this->here = newSpot->here;
+    spots.emplace_back(newSpot);
     return *this;
   }
 
@@ -282,22 +302,28 @@ class path : public spot<ObjectType> {
   }
 
   spot<ObjectType>& back(size_t count = 0) noexcept {
-    return const_cast<spot<ObjectType>&>(
-        const_cast<const path<ObjectType>*>(this)->back(count));
+    const auto* const_this = this;
+    return const_cast<spot<ObjectType>&>(const_this->back(count));
   }
 
   spot<ObjectType>& front(size_t count = 0) noexcept {
-    return const_cast<spot<ObjectType>&>(
-        const_cast<const path<ObjectType>*>(this)->front(count));
+    const auto* const_this = this;
+    return const_cast<spot<ObjectType>&>(const_this->front(count));
   }
 
-  void clear() noexcept { spots.clear(); }
+  path& clear() noexcept {
+    spots.clear();
+    this->here = nullptr;
+    return *this;
+  }
 
   template <typename RootSpot = spot<ObjectType>, typename... ArgTypes>
-  void reset_root(ArgTypes&&... args) {
+  path& reset(ArgTypes&&... args) {
     spots.clear();
-    spots.emplace_back(new RootSpot(std::forward<ArgTypes>(args)...));
-    this->here = spots.back()->here;
+    auto newRoot = new RootSpot(std::forward<ArgTypes>(args)...);
+    this->here = newRoot->here;
+    spots.emplace_back(newRoot);
+    return *this;
   }
 
  private:
@@ -307,7 +333,7 @@ class path : public spot<ObjectType> {
 template<typename ObjectType, typename... StepLambdaType>
 path<ObjectType> make_path(ptr<ObjectType>* root, StepLambdaType&&... stepFunc) {
   path<ObjectType> result(root);
-  (result.add_lambda(std::forward<StepLambdaType>(stepFunc)), ...);
+  (result.push(std::forward<StepLambdaType>(stepFunc)), ...);
   return result;
 }
 

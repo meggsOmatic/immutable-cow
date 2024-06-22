@@ -90,6 +90,14 @@ TEST(CowPath, TreeWithPath) {
   EXPECT_EQ(a->right->left->value, 6);
 
   EXPECT_EQ(pathToSix->value, 6);
+  EXPECT_EQ(&pathToSix->value, &a->right->left->value);
+
+  pathToSix.resize(1);
+  pathToSix.push(right);
+  pathToSix.push(&pathToSix->left);
+  EXPECT_EQ(pathToSix->value, 6);
+  EXPECT_EQ(&pathToSix->value, &a->right->left->value);
+
   pathToSix--->value += 10;
 
   EXPECT_NE(a, b);
