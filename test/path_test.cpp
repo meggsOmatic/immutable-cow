@@ -16,11 +16,12 @@ void replaceInPlace(cow::spot<tree>&& node, int oldVal, int newVal) {
     node--->value = newVal;
   }
 
+  // Step left with lambda_spot
   replaceInPlace(node.step([](const tree& from) { return &from.left; }), oldVal,
-          newVal);
-  replaceInPlace(node.step(&node->right),
-                 oldVal,
-          newVal);
+                 newVal);
+
+  // Step right with offset_spot
+  replaceInPlace(node.step(&node->right), oldVal, newVal);
 }
 }  // namespace
 
