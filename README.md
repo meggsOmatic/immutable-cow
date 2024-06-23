@@ -257,6 +257,7 @@ while (findPath) {
     findPath.push(&find->right);
   } else {
     find--->value = newValue;
+    break;
   }
 }
 ```
